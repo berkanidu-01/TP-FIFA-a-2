@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Jeu Réseau avec Three.js et Cannon.js</title>
+   <style>
+       body { margin: 0; overflow: hidden; }
+   </style>
+</head>
+<body>
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script> <!-- Cannon.js pour la physique -->
+<script>
+   // Connexion au serveur Socket.IO
+   const socket = io();
+
+   // Dimensions du terrain
+   const terrainSize = 20;
+
+   // Création de la scène Three.js
+   const scene = new THREE.Scene();
+   const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+   const renderer = new THREE.WebGLRenderer();
+   renderer.setSize(window.innerWidth, window.innerHeight);
+   document.body.appendChild(renderer.domElement);
+
+   // Lumière pour voir la scène
+   const light = new THREE.DirectionalLight(0xffffff, 1);
+   light.position.set(5, 5, 5);
+   scene.add(light);
+
+   // Monde physique Cannon.js
+   const world = new CANNON.World();
+   world.gravity.set(0, -9.82, 0);
+
+   // Sol dans Cannon.js
+   const groundMaterial = new CANNON.Material();
+   const groundBody = new CANNON.Body({
+       mass: 0,  // Sol statique
+       shape: new CANNON.Plane(),
+       material: groundMaterial
+   });
+   groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);  // Orienter le sol à plat
+   world.addBody(groundBody);
+
+   // Sol dans Three.js
+   const planeGeometry = new THREE.PlaneGeometry(terrainSize, terrainSize);
+   const planeMaterial = new THREE.MeshBasicMaterial({ color: 0x808080, side: THREE.DoubleSide });
+   const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+   plane.rotation.x = Math.PI / 2;
+   scene.add(plane);
+
+   // Création des bordures (murs)
+   const wallThickness = 0.5;
+   const wallHeight = 2;
+
+   // Fonction pour créer un mur
+   function createWall(x, z, width, height, depth) {
+       // Créer la physique du mur
+       const wallShape = new CANNON.Box(new CANNON.Vec3(width / 2, height / 2, depth / 2));
+       const wallBody = new CANNON.Body({
+           mass: 0,  // Statique
+           position: new CANNON.Vec3(x, height / 2, z),  // Position du mur
+           shape: wallShape
+       });
+       world.addBody(wallBody);
+
+       // Créer le mur visuel dans Three.js
+       const wallGeometry = new THREE.BoxGeometry(width, height, depth);
+       const wallMaterial = new THREE.MeshBasicMaterial({ color: 0x888888 });
+       const wallMesh = new THREE.Mesh(wallGeometry, wallMaterial);
+       wallMesh.position.set(x, height / 2, z);
+       scene.add(wallMesh);
+   }
+
+   // Ajouter des murs autour du terrain
+   createWall(terrainSize / 2, 0, wallThickness, wallHeight, terrainSize);  // Mur de droite
+   createWall(-terrainSize / 2, 0, wallThickness, wallHeight, terrainSize); // Mur de gauche
+   createWall(0, terrainSize / 2, terrainSize, wallHeight, wallThickness);  // Mur du haut
+   createWall(0, -terrainSize / 2, terrainSize, wallHeight, wallThickness); // Mur du bas
+
+   // Création de la balle dans Cannon.js
+   const ballShape = new CANNON.Sphere(0.5);  // Rayon de la balle
+   const ballBody = new CANNON.Body({
+       mass: 1,  // La balle a une masse pour être affectée par la gravité
+       position: new CANNON.Vec3(0, 1, 0),  // Position initiale
+       shape: ballShape
+   });
+   world.addBody(ballBody);
+
+   // Création de la balle dans Three.js
+   const ballGeometry = new THREE.SphereGeometry(0.5, 32, 32);
+   const ballMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+   const ballMesh = new THREE.Mesh(ballGeometry, ballMaterial);
+   scene.add(ballMesh);
+
+   // Liste des cubes joueurs, colliders et leurs corps physiques
+   const players = {};
+   const colliders = {};
+   const playerBodies = {};
+
+   // Création de cubes pour chaque joueur avec un corps Cannon.js
+   function createPlayerCube(player) {
+       const geometry = new THREE.BoxGeometry(1, 1, 1);
+       const material = new THREE.MeshBasicMaterial({ color: player.color });
+       const cube = new THREE.Mesh(geometry, material);
+       cube.position.set(player.x, player.y, player.z);
+       scene.add(cube);
+
+       // Créer un corps physique pour le joueur dans Cannon.js
+       const playerShape = new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5));  // Un cube de 1x1x1
+       const playerBody = new CANNON.Body({
+           mass: 1,  // Donne une masse pour permettre les interactions physiques
+           position: new CANNON.Vec3(player.x, player.y, player.z),
+           shape: playerShape
+       });
+       playerBody.fixedRotation = true;  // Empêcher le joueur de rouler
+       world.addBody(playerBody);
+
+       // Enregistrer le corps physique et le collider
+       playerBodies[player.id] = playerBody;
+       colliders[player.id] = cube;
+
+       return cube;
+   }
+
+   // Initialisation des joueurs lorsque la connexion est établie
+   socket.on('init', (serverPlayers) => {
+       for (let id in serverPlayers) {
+           players[id] = createPlayerCube(serverPlayers[id]);
+       }
+   });
+
+   // Ajout d'un nouveau joueur
+   socket.on('newPlayer', (player) => {
+       players[player.id] = createPlayerCube(player);
+   });
+
+   // Mise à jour de la position des joueurs et des colliders
+   socket.on('playerMoved', (player) => {
+       if (players[player.id]) {
+           const playerBody = playerBodies[player.id];
+           playerBody.position.set(player.x, player.y, player.z);  // Mise à jour de la position dans Cannon.js
+       }
+   });
+
+   // Suppression d'un joueur déconnecté
+   socket.on('playerDisconnected', (id) => {
+       if (players[id]) {
+           scene.remove(players[id]);
+           world.removeBody(playerBodies[id]);
+           delete players[id];
+           delete colliders[id];
+           delete playerBodies[id];
+       }
+   });
+
+   // Contrôle du joueur local (utilisation des touches de direction)
+   const moveSpeed = 5;  // Augmenter la vitesse de déplacement
+   document.addEventListener('keydown', (event) => {
+       const player = players[socket.id];
+       const playerBody = playerBodies[socket.id];
+       if (player && playerBody) {
+           let velocity = new CANNON.Vec3();  // Vitesse initiale nulle
+
+           if (event.key === 'ArrowUp') velocity.z = -moveSpeed;
+           if (event.key === 'ArrowDown') velocity.z = moveSpeed;
+           if (event.key === 'ArrowLeft') velocity.x = -moveSpeed;
+           if (event.key === 'ArrowRight') velocity.x = moveSpeed;
+
+           // Appliquer la vitesse au joueur
+           playerBody.velocity.set(velocity.x, playerBody.velocity.y, velocity.z);
+       }
+   });
+
+   // Positionnement de la caméra
+   camera.position.set(0, 5, 10);
+   camera.lookAt(0, 1, 0);
+
+   // Fonction d'animation et simulation physique
+   function animate() {
+       requestAnimationFrame(animate);
+
+       // Mise à jour du monde physique
+       world.step(1 / 60);
+
+       // Synchronisation des positions des objets physiques avec les objets Three.js
+       ballMesh.position.copy(ballBody.position);
+
+       for (let id in players) {
+           const playerBody = playerBodies[id];
+           colliders[id].position.copy(playerBody.position);  // Synchroniser les joueurs
+       }
+
+       renderer.render(scene, camera);
+   }
+   animate();
+</script>
+</body>
+</html>
