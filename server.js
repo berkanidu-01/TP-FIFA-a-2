@@ -18,6 +18,11 @@ app.use(express.static(__dirname + '/public'));
 // Variable pour stocker les joueurs connectés, chaque joueur sera identifié par un ID unique
 let players = {};
 
+let scores = {
+    teamGreen: 0,
+    teamRed: 0
+};
+
 // Gestion des événements lorsqu'un utilisateur se connecte au serveur
 io.on('connection', (socket) => {
     console.log('Nouvel utilisateur connecté :', socket.id);
@@ -32,6 +37,19 @@ io.on('connection', (socket) => {
         z: Math.random() * 10 - 5, // Position Z du joueur (aléatoire)
         color: '#' + Math.floor(Math.random() * 16777215).toString(16) // Couleur aléatoire
     };
+
+
+    socket.emit('scoreUpdate', scores);
+
+    // Listen for score update events from clients
+    socket.on('score', (data) => {
+        // Update the server-side score
+        scores.teamGreen = data.teamGreen;
+        scores.teamRed = data.teamRed;
+
+        // Broadcast the updated score to all connected clients
+        io.emit('scoreUpdate', scores);
+    });
 
     // Envoyer la liste de tous les joueurs actuels au nouveau joueur
     socket.emit('init', players);
@@ -49,6 +67,7 @@ io.on('connection', (socket) => {
         // Envoyer les nouvelles coordonnées du joueur à tous les autres joueurs connectés
         socket.broadcast.emit('playerMoved', data);
     });
+
     // Listen for 'score' events from clients
     socket.on('score', (data) => {
         // Update the score based on incoming data

@@ -221,10 +221,7 @@
             }
         });
         socket.on('scoreUpdate', (data) => {
-            // Log the updated score to the console
             console.log('Score Updated:', data);
-
-            // Update the UI to reflect the new scores
             document.getElementById("info").innerHTML = "Team Green " + data.teamGreen + " - " + data.teamRed + " Team RED";
         });
         // Ajout d'un nouveau joueur
