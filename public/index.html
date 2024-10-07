@@ -23,13 +23,13 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
-    <!-- Cannon.js pour la physique -->
+    <
     <script>
 
         // Connexion au serveur Socket.IO
         const socket = io();
 
-        //score red et green
+        
         let i = 0;
         let j = 0;
         // Dimensions du terrain
@@ -42,19 +42,19 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // Lumière pour voir la scène
+        // Lumière 
         const light = new THREE.DirectionalLight(0xffffff, 1);
         light.position.set(5, 5, 5);
         scene.add(light);
 
-        // Monde physique Cannon.js
+        // Cannon.js
         const world = new CANNON.World();
         world.gravity.set(0, -9.82, 0);
 
         // Sol dans Cannon.js
         const groundMaterial = new CANNON.Material();
         const groundBody = new CANNON.Body({
-            mass: 0,  // Sol statique
+            mass: 0,  
             shape: new CANNON.Plane(),
             material: groundMaterial
         });
@@ -68,7 +68,7 @@
         plane.rotation.x = Math.PI / 2;
         scene.add(plane);
 
-        // Création des bordures (murs)
+        
         const wallThickness = 0.5;
         const wallHeight = 2;
 
@@ -77,8 +77,8 @@
             // Créer la physique du mur
             const wallShape = new CANNON.Box(new CANNON.Vec3(width / 2, height / 2, depth / 2));
             const wallBody = new CANNON.Body({
-                mass: 0,  // Statique
-                position: new CANNON.Vec3(x, height / 2, z),  // Position du mur
+                mass: 0,  
+                position: new CANNON.Vec3(x, height / 2, z),  
                 shape: wallShape,
             });
             world.addBody(wallBody);
@@ -91,7 +91,7 @@
             scene.add(wallMesh);
         }
 
-        // Ajouter des murs autour du terrain
+        
         createWall(terrainSize / 2, 0, wallThickness, wallHeight, terrainSize);  // Mur de droite
         createWall(-terrainSize / 2, 0, wallThickness, wallHeight, terrainSize); // Mur de gauche
         createWall(0, terrainSize / 2, terrainSize, wallHeight, wallThickness);  // Mur du haut
@@ -121,24 +121,24 @@
 
         // Création de cubes pour chaque joueur avec un corps Cannon.js et deux cubes de but (goals)
         function createPlayerCube(player) {
-            // Create the player's cube in Three.js
+            
             const geometry = new THREE.BoxGeometry(1, 1, 1);
             const material = new THREE.MeshBasicMaterial({ color: player.color });
             const cube = new THREE.Mesh(geometry, material);
             cube.position.set(player.x, player.y, player.z);
             scene.add(cube);
 
-            // Create the player's physical body in Cannon.js
-            const playerShape = new CANNON.Sphere(0.5);  // Simulate movement with a sphere
+            
+            const playerShape = new CANNON.Sphere(0.5);  
             const playerBody = new CANNON.Body({
-                mass: 1,  // The player has mass for physical interactions
+                mass: 1,  
                 position: new CANNON.Vec3(player.x, player.y, player.z),
                 shape: playerShape,
             });
             // playerBody.fixedRotation = true;  // Prevent the player from rolling
             world.addBody(playerBody);
 
-            // Register the player's body and collider
+            
             playerBodies[player.id] = playerBody;
             colliders[player.id] = cube;
 
@@ -149,35 +149,35 @@
         // --- Add two goal cubes ---
 
         // First goal cube (you can adjust the position)
-        const goal1Geometry = new THREE.BoxGeometry(1, 1, 4);  // Size of goal cube
-        const goal1Material = new THREE.MeshBasicMaterial({ color: 0xff0000 });  // Red color for the first goal
+        const goal1Geometry = new THREE.BoxGeometry(1, 1, 4);  
+        const goal1Material = new THREE.MeshBasicMaterial({ color: 0xff0000 });  
         const goal1 = new THREE.Mesh(goal1Geometry, goal1Material);
-        goal1.position.set(terrainSize / 2, 1, 0);  // Position it somewhere on the map
+        goal1.position.set(terrainSize / 2, 1, 0);  
         scene.add(goal1);
 
         // Physical body for the first goal in Cannon.js
         const goal1Body = new CANNON.Body({
-            mass: 0,  // Static object, doesn't move
-            position: new CANNON.Vec3(terrainSize / 2, 1, 0),  // Match position
-            shape: new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5))  // Same size as Three.js cube
+            mass: 0,  /
+            position: new CANNON.Vec3(terrainSize / 2, 1, 0),  
+            shape: new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5))  
         });
         world.addBody(goal1Body);
 
         // Second goal cube
         const goal2Geometry = new THREE.BoxGeometry(1, 1, 4);
-        const goal2Material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });  // Green color for the second goal
+        const goal2Material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });  
         const goal2 = new THREE.Mesh(goal2Geometry, goal2Material);
-        goal2.position.set(-terrainSize / 2, 1, 0);  // Position it somewhere else on the map
+        goal2.position.set(-terrainSize / 2, 1, 0);  
         scene.add(goal2);
 
         // Physical body for the second goal in Cannon.js
         const goal2Body = new CANNON.Body({
-            mass: 0,  // Static object, doesn't move
-            position: new CANNON.Vec3(-terrainSize / 2, 1, 0),  // Match position
-            shape: new CANNON.Box(new CANNON.Vec3(0.5, 10, 0.5))  // Same size as Three.js cube
+            mass: 0,  
+            position: new CANNON.Vec3(-terrainSize / 2, 1, 0),  
+            shape: new CANNON.Box(new CANNON.Vec3(0.5, 10, 0.5))  
         });
         world.addBody(goal2Body);
-        // Listen for collisions with the first goal
+        
         world.addEventListener('postStep', () => {
             if (ballBody && ballBody.position.distanceTo(goal1Body.position) < 1.5) {
 
@@ -186,11 +186,11 @@
                 document.getElementById("info").innerHTML = "Team Green " + i + "-" + j + " Team RED";
 
                 ballBody.position.set(0, 1, 0);
-                ballBody.sleep();  // Put the body to sleep (it will stop updating)
-                ballBody.wakeUp();  // Wake up the body when needed (if you want it to move again)
+                ballBody.sleep();  
+                ballBody.wakeUp();  
                 socket.emit('score', {
-                    teamGreen: i,  // 'i' represents the score for Team Green
-                    teamRed: j     // 'j' represents the score for Team Red
+                    teamGreen: i,  
+                    teamRed: j     
                 });
 
 
@@ -201,8 +201,8 @@
                 j += 1;
                 document.getElementById("info").innerHTML = "Team Green " + i + "-" + j + " Team RED";
                 ballBody.position.set(0, 1, 0);
-                ballBody.sleep();  // Put the body to sleep (it will stop updating)
-                ballBody.wakeUp();  // Wake up the body when needed (if you want it to move again)
+                ballBody.sleep();  
+                ballBody.wakeUp();  
 
                 socket.emit('score', {
                     teamGreen: i,  // 'i' represents the score for Team Green
@@ -248,9 +248,9 @@
             }
         });
         // Contrôle du joueur local (utilisation des touches de direction)
-        const moveSpeed = 10;  // Augmenter la vitesse de déplacement
+        const moveSpeed = 10;  
         document.addEventListener('keydown', (event) => {
-            const playerBody = playerBodies[socket.id];  // Get the local player's body
+            const playerBody = playerBodies[socket.id];  
 
             if (playerBody) {
                 let velocity = new CANNON.Vec3(0, 0, 0);  // Vitesse initiale nulle
@@ -260,10 +260,10 @@
                 if (event.key === 'ArrowLeft') velocity.x = -moveSpeed;
                 if (event.key === 'ArrowRight') velocity.x = moveSpeed;
 
-                // // Apply the velocity to the player's body
+                
                 playerBody.velocity.set(velocity.x, playerBody.velocity.y, velocity.z);
 
-                // Emit the movement data along with the player's ID to the server
+                
                 socket.emit('movePlayer', {
                     id: socket.id,  // Include the player's unique ID
                     v: velocity,

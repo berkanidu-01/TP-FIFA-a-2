@@ -27,9 +27,7 @@ let scores = {
 io.on('connection', (socket) => {
     console.log('Nouvel utilisateur connecté :', socket.id);
 
-    // Lorsqu'un nouveau joueur se connecte, on lui attribue un cube dans l'espace 3D.
-    // Les coordonnées X et Z sont générées aléatoirement pour placer chaque joueur à un endroit différent.
-    // Chaque joueur a aussi une couleur aléatoire.
+    
     players[socket.id] = {
         id: socket.id, // ID unique pour identifier le joueur
         x: Math.random() * 10 - 5, // Position X du joueur (aléatoire)
@@ -41,13 +39,13 @@ io.on('connection', (socket) => {
 
     socket.emit('scoreUpdate', scores);
 
-    // Listen for score update events from clients
+    
     socket.on('score', (data) => {
-        // Update the server-side score
+        
         scores.teamGreen = data.teamGreen;
         scores.teamRed = data.teamRed;
 
-        // Broadcast the updated score to all connected clients
+        
         io.emit('scoreUpdate', scores);
     });
 
@@ -59,23 +57,20 @@ io.on('connection', (socket) => {
 
     // Lorsqu'un joueur se déplace, il envoie sa nouvelle position au serveur
     socket.on('movePlayer', (data) => {
-        // // Mettre à jour la position du joueur dans la liste des joueurs
-        // players[socket.id].x = data.x;
-        // players[socket.id].y = data.y;
-        // players[socket.id].z = data.z;
+        
 
-        // Envoyer les nouvelles coordonnées du joueur à tous les autres joueurs connectés
+        
         socket.broadcast.emit('playerMoved', data);
     });
 
-    // Listen for 'score' events from clients
+    
     socket.on('score', (data) => {
-        // Update the score based on incoming data
-        score.teamGreen = data.teamGreen;
-        score.teamRed = data.teamRed;
+        
+        scores.teamGreen = data.teamGreen;
+        scores.teamRed = data.teamRed;
 
-        // Broadcast the new score to all clients except the sender
-        socket.broadcast.emit('scoreUpdate', score);
+        
+        socket.broadcast.emit('scoreUpdate', scores);
     });
     // Gestion de la déconnexion d'un joueur
     socket.on('disconnect', () => {
